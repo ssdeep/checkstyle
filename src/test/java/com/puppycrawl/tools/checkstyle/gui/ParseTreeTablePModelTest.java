@@ -19,6 +19,8 @@
 
 package com.puppycrawl.tools.checkstyle.gui;
 
+import static org.junit.Assert.fail;
+
 import java.io.File;
 
 import org.junit.Assert;
@@ -43,7 +45,7 @@ public class ParseTreeTablePModelTest {
         return "src/test/resources/com/puppycrawl/tools/checkstyle/gui/" + filename;
     }
 
-    public static DetailAST parseFile(File file) throws Exception {
+    private static DetailAST parseFile(File file) throws Exception {
         final FileContents contents = new FileContents(
                 new FileText(file.getAbsoluteFile(), System.getProperty("file.encoding", "UTF-8")));
         return TreeWalker.parseWithComments(contents);
@@ -163,8 +165,103 @@ public class ParseTreeTablePModelTest {
         Assert.assertTrue(javadoc instanceof DetailNode);
         Assert.assertEquals(JavadocTokenTypes.JAVADOC, ((DetailNode) javadoc).getType());
         final Object javadocChild = parseTree.getChild(javadoc, 2);
-        Assert.assertTrue(javadoc instanceof DetailNode);
         Assert.assertEquals(JavadocTokenTypes.TEXT, ((DetailNode) javadocChild).getType());
+    }
+
+    @Test
+    public void testGetIndexOfChild() {
+        final DetailAST nChild = tree.getFirstChild().getNextSibling().getNextSibling();
+        final ParseTreeTablePModel parseTree = new ParseTreeTablePModel(null);
+        int n = parseTree.getIndexOfChild(tree, nChild);
+        Assert.assertEquals(2, n);//3rd child of tree
+    }
+
+    @Test
+    public void testGetValueAt() {
+        DetailAST node = tree.getFirstChild()
+          .getNextSibling()
+          .getNextSibling()
+          .getNextSibling(); // this is the node where the class name starts
+
+        final ParseTreeTablePModel parseTree = new ParseTreeTablePModel(null);
+        Object treeModel = parseTree.getValueAt(node, 0);
+        String type = (String)parseTree.getValueAt(node, 1);
+        int line = (int)parseTree.getValueAt(node, 2);
+        int column = (int)parseTree.getValueAt(node, 3);
+        String text = (String)parseTree.getValueAt(node, 4);
+
+        Assert.assertEquals("IDENT", type);
+        Assert.assertEquals(4, line);
+        Assert.assertEquals(6, column);
+        Assert.assertEquals("InputJavadocAttributesAndMethods", text);
+        Assert.assertNull(treeModel);
+
+        try {
+            parseTree.getValueAt(node, 231);
+            fail();
+        } catch (IllegalStateException ex) {
+            Assert.assertEquals("Unknown column", ex.getMessage());
+        }
+
+    }
+
+    @Test
+    public void testGetValueAtDetailNode() {
+        DetailAST commentContentNode = tree.getFirstChild().getNextSibling().getFirstChild();
+        final ParseTreeTablePModel parseTree = new ParseTreeTablePModel(null);
+        parseTree.setParseMode(ParseMode.JAVA_WITH_JAVADOC_AND_COMMENTS);
+        final Object child = parseTree.getChild(commentContentNode, 0);
+
+        Assert.assertFalse(parseTree.isLeaf(child));
+        Assert.assertTrue(parseTree.isLeaf(tree.getFirstChild()));
+
+        Object treeModel = parseTree.getValueAt(child, 0);
+        String type = (String)parseTree.getValueAt(child, 1);
+        int line = (int)parseTree.getValueAt(child, 2);
+        int column = (int)parseTree.getValueAt(child, 3);
+        String text = (String)parseTree.getValueAt(child, 4);
+
+        Assert.assertEquals(null, treeModel);
+        Assert.assertEquals("JAVADOC", type);
+        Assert.assertEquals(1, line);
+        Assert.assertEquals(0, column);
+        Assert.assertEquals("\n* class javadoc\n<EOF>", text);
+
+        try {
+            parseTree.getValueAt(child, 6);
+            fail();
+        } catch (IllegalStateException ex) {
+            Assert.assertEquals("Unknown column", ex.getMessage());
+        }
+
+    }
+
+    @Test
+    public void testColumnMethods() {
+        final ParseTreeTablePModel parseTree = new ParseTreeTablePModel(null);
+        Assert.assertEquals(ParseTreeTablePModel.class, parseTree.getColumnClass(0));
+        Assert.assertEquals(String.class, parseTree.getColumnClass(1));
+        Assert.assertEquals(Integer.class, parseTree.getColumnClass(2));
+        Assert.assertEquals(Integer.class, parseTree.getColumnClass(3));
+        Assert.assertEquals(String.class, parseTree.getColumnClass(4));
+
+        try {
+            parseTree.getColumnClass(67);
+            fail();
+        } catch (IllegalStateException ex) {
+          Assert.assertEquals("Unknown column", ex.getMessage());
+        }
+
+        Assert.assertTrue(parseTree.isCellEditable(0));
+        Assert.assertFalse(parseTree.isCellEditable(1));
+
+        Assert.assertEquals(5, parseTree.getColumnCount());// Tree, Type, Line, Column, Text
+        Assert.assertEquals("Tree", parseTree.getColumnName(0));
+        Assert.assertEquals("Type", parseTree.getColumnName(1));
+        Assert.assertEquals("Line", parseTree.getColumnName(2));
+        Assert.assertEquals("Column", parseTree.getColumnName(3));
+        Assert.assertEquals("Text", parseTree.getColumnName(4));
+
     }
 
 }

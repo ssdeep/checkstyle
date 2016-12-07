@@ -112,7 +112,7 @@ public class ParseTreeTablePModel {
 
         switch (column) {
             case 0:
-                columnClass = ParseTreeTableModel.class;
+                columnClass = ParseTreeTablePModel.class;
                 break;
             case 1:
                 columnClass = String.class;
